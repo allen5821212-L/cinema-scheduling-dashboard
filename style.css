@@ -9,8 +9,10 @@ body{margin:0;background:#0b0f14;color:var(--text);font-family:system-ui,"Noto S
 .card h2{margin:0 0 10px;font-size:16px}
 h3{margin:6px 0 8px;color:#cbd5e1;font-size:14px}
 .grid.two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
-.row{display:grid;grid-template-columns:1fr 160px;gap:8px;align-items:center;margin:6px 0}
+.row{display:grid;grid-template-columns:1fr 160px 40px;gap:8px;align-items:center;margin:6px 0}
 .row input{width:100%;padding:8px;border-radius:10px;border:1px solid var(--border);background:#0b1220;color:var(--text)}
+.row .unit{color:#cbd5e1;opacity:.8}
+.row:not(.with-unit) .unit{display:none}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 button{border:0;background:#22d3ee;color:#002a31;padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer}
 button.secondary{background:#172554;color:#dbeafe}
@@ -24,4 +26,4 @@ button.secondary{background:#172554;color:#dbeafe}
 .ok{background:var(--ok)} .warn{background:var(--warn)} .err{background:var(--err)}
 .hint-box{margin-top:10px;padding:10px;border:1px dashed var(--border);border-radius:12px;color:#cbd5e1;background:#0b1220}
 .scenario-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.app-footer{color:var(--muted);text-align:center;padding:18px 10px;font-size:12px}
+.app-footer{color:#9aa3b1;text-align:center;padding:18px 10px;font-size:12px}

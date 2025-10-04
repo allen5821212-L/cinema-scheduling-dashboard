@@ -1,11 +1,29 @@
+// v3.3: clamp % inputs, NaN guards, per-film long-fee, unit hints
 function el(id){ return document.getElementById(id) }
-function num(id){ return parseFloat(el(id).value) }
+function num(id){
+  const v = parseFloat(el(id).value)
+  return Number.isFinite(v)? v : 0
+}
+function clamp(val,min,max){ return Math.min(max, Math.max(min,val)) }
 let chartRef=null
 
+// ---------- Core calc ----------
 function readParams(){
+  // clamp % to 0~100 and NaN-guard
+  ;['occDemonBig','occDemonSmall','occF1Big','occF1Small'].forEach(id=>{
+    const raw = parseFloat(el(id).value)
+    if(!Number.isFinite(raw)){ el(id).value = 0 }
+    else if(raw<0 || raw>100){ el(id).value = clamp(raw,0,100) }
+  })
+
+  // avg prices with per-film long-fee logic
   let avgPriceDemon = num('avgPriceDemon')
-  const addLong = (num('timeDemon') > 2.5) && !el('avgIncludesLongFee').checked
-  if(addLong) avgPriceDemon += num('longFeeDemon')
+  let avgPriceF1    = num('avgPriceF1')
+  const addDemon = (num('timeDemon') > 2.5) && !el('avgIncludesLongFeeDemon').checked
+  const addF1    = (num('timeF1')    > 2.5) && !el('avgIncludesLongFeeF1').checked
+  if(addDemon) avgPriceDemon += num('longFeeDemon')
+  if(addF1)    avgPriceF1    += num('longFeeF1')
+
   return {
     limitTime: num('limitTime'), limitClean: num('limitClean'),
     limitBigShows: Math.round(num('limitBigShows')), limitSmallShows: Math.round(num('limitSmallShows')),
@@ -16,11 +34,12 @@ function readParams(){
     demandDemon: num('demandDemon'), demandF1: num('demandF1'),
     priceDemon: num('priceDemon'), timeDemon: num('timeDemon'),
     longFeeDemon: num('longFeeDemon'), avgPriceDemon,
-    priceF1: num('priceF1'), timeF1: num('timeF1'), avgPriceF1: num('avgPriceF1'),
+    priceF1: num('priceF1'), timeF1: num('timeF1'), longFeeF1: num('longFeeF1'), avgPriceF1,
     cleanDemonBig: num('cleanDemonBig'), cleanDemonSmall: num('cleanDemonSmall'),
     cleanF1Big: num('cleanF1Big'), cleanF1Small: num('cleanF1Small'),
     varCostPerHead: num('varCostPerHead'),
-    usedAvgAddLong: addLong
+    usedAvgAddLong_Demon: addDemon,
+    usedAvgAddLong_F1: addF1
   }
 }
 
@@ -58,6 +77,7 @@ function solve(){
   render(best, p); validate(best, p); window.__lastBest = {best, p}
 }
 
+// ---------- Render ----------
 function render(best, p){
   const k = el('kpi')
   if(best.profit === -Infinity){ k.innerHTML = '<div class="box"><div class="lbl">結果</div><div class="val">找不到可行解</div></div>'; return }
@@ -77,6 +97,7 @@ function render(best, p){
   })
 }
 
+// ---------- Validation ----------
 function addCheck(level, text){
   const li = document.createElement('li')
   li.innerHTML = `<span class="badge ${level}"></span><span>${text}</span>`
@@ -101,14 +122,30 @@ function validate(best, p){
   addCheck(best.headD<=p.demandDemon+1e-6?'ok':'err', `鬼滅人次 ≤ 上限：${Math.round(best.headD)} / ${p.demandDemon}`)
   addCheck(best.headF<=p.demandF1+1e-6?'ok':'err', `F1 人次 ≤ 上限：${Math.round(best.headF)} / ${p.demandF1}`)
   if(p.timeDemon>2.5){
-    if(p.usedAvgAddLong) addCheck('ok', `長片加價：已加入 $${p.longFeeDemon}，鬼滅平均票價採用 $${p.avgPriceDemon}`)
-    else addCheck('warn', `長片加價：未加入（勾選「平均票價已含長片加價」），目前採用 $${p.avgPriceDemon}`)
-  }else{
-    addCheck('ok','長片加價：片長 ≤ 2.5h，不適用。')
-  }
+    if(p.usedAvgAddLong_Demon) addCheck('ok', `鬼滅長片加價：已加入 $${num('longFeeDemon')}，平均票價採用 $${p.avgPriceDemon}`)
+    else addCheck('warn', `鬼滅長片加價：未加入（勾選「平均票價已含長片加價(鬼滅)」），目前採用 $${p.avgPriceDemon}`)
+  }else{ addCheck('ok','鬼滅長片加價：片長 ≤ 2.5h，不適用。') }
+  if(p.timeF1>2.5){
+    if(p.usedAvgAddLong_F1) addCheck('ok', `F1 長片加價：已加入 $${num('longFeeF1')}，平均票價採用 $${p.avgPriceF1}`)
+    else addCheck('warn', `F1 長片加價：未加入（勾選「平均票價已含長片加價(F1)」），目前採用 $${p.avgPriceF1}`)
+  }else{ addCheck('ok','F1 長片加價：片長 ≤ 2.5h，不適用。') }
 }
 
-// Import/Export config
+// ---------- Import/Export ----------
+const flatKeyMap = {
+  "放映時數上限":"limitTime","清潔工時上限":"limitClean","大廳場次上限":"limitBigShows","小廳場次上限":"limitSmallShows",
+  "每片最少場次":"minPerTitle","大廳座位數":"capBig","小廳座位數":"capSmall",
+  "鬼滅大廳上座率":"occDemonBig","鬼滅小廳上座率":"occDemonSmall","F1大廳上座率":"occF1Big","F1小廳上座率":"occF1Small",
+  "鬼滅人次上限":"demandDemon","F1人次上限":"demandF1",
+  "鬼滅全票":"priceDemon","鬼滅片長":"timeDemon","鬼滅長片加價":"longFeeDemon","鬼滅平均票價":"avgPriceDemon",
+  "F1全票":"priceF1","F1片長":"timeF1","F1長片加價":"longFeeF1","F1平均票價":"avgPriceF1",
+  "鬼滅大廳清潔工時":"cleanDemonBig","鬼滅小廳清潔工時":"cleanDemonSmall","F1大廳清潔工時":"cleanF1Big","F1小廳清潔工時":"cleanF1Small",
+  "每人變動成本":"varCostPerHead",
+  "平均票價已含長片加價（鬼滅）":"avgIncludesLongFeeDemon","平均票價已含長片加價（F1）":"avgIncludesLongFeeF1"
+}
+const matrixHalls=['鬼滅大廳','鬼滅小廳','F1大廳','F1小廳']
+const matrixRows=['片長(h)','上座率','清潔/場','座位數','票價(全票)','平均票價(估)']
+
 function exportCfg(){
   const cfg = readParams()
   const blob = new Blob([JSON.stringify(cfg,null,2)], {type:'application/json'})
@@ -127,25 +164,21 @@ function applyConfig(cfg){
     limitTime:'limitTime', limitClean:'limitClean', limitBigShows:'limitBigShows', limitSmallShows:'limitSmallShows', minPerTitle:'minPerTitle',
     capBig:'capBig', capSmall:'capSmall', occDemonBig:'occDemonBig', occDemonSmall:'occDemonSmall', occF1Big:'occF1Big', occF1Small:'occF1Small',
     demandDemon:'demandDemon', demandF1:'demandF1', priceDemon:'priceDemon', timeDemon:'timeDemon', longFeeDemon:'longFeeDemon', avgPriceDemon:'avgPriceDemon',
-    priceF1:'priceF1', timeF1:'timeF1', avgPriceF1:'avgPriceF1', cleanDemonBig:'cleanDemonBig', cleanDemonSmall:'cleanDemonSmall', cleanF1Big:'cleanF1Big', cleanF1Small:'cleanF1Small',
-    varCostPerHead:'varCostPerHead'
+    priceF1:'priceF1', timeF1:'timeF1', longFeeF1:'longFeeF1', avgPriceF1:'avgPriceF1',
+    cleanDemonBig:'cleanDemonBig', cleanDemonSmall:'cleanDemonSmall', cleanF1Big:'cleanF1Big', cleanF1Small:'cleanF1Small',
+    varCostPerHead:'varCostPerHead',
+    avgIncludesLongFeeDemon:'avgIncludesLongFeeDemon', avgIncludesLongFeeF1:'avgIncludesLongFeeF1'
   }
-  Object.entries(map).forEach(([k,id])=>{ if(cfg[k] !== undefined){ el(id).value = cfg[k] } })
+  Object.entries(map).forEach(([k,id])=>{
+    if(cfg[k] !== undefined){
+      if(typeof el(id).type === 'string' && el(id).type === 'checkbox'){
+        el(id).checked = !!cfg[k]
+      }else{
+        el(id).value = cfg[k]
+      }
+    }
+  })
 }
-
-// Excel import + scenarios
-const flatKeyMap = {
-  "放映時數上限":"limitTime","清潔工時上限":"limitClean","大廳場次上限":"limitBigShows","小廳場次上限":"limitSmallShows",
-  "每片最少場次":"minPerTitle","大廳座位數":"capBig","小廳座位數":"capSmall",
-  "鬼滅大廳上座率":"occDemonBig","鬼滅小廳上座率":"occDemonSmall","F1大廳上座率":"occF1Big","F1小廳上座率":"occF1Small",
-  "鬼滅人次上限":"demandDemon","F1人次上限":"demandF1",
-  "鬼滅全票":"priceDemon","鬼滅片長":"timeDemon","鬼滅長片加價":"longFeeDemon","鬼滅平均票價":"avgPriceDemon",
-  "F1全票":"priceF1","F1片長":"timeF1","F1平均票價":"avgPriceF1",
-  "鬼滅大廳清潔工時":"cleanDemonBig","鬼滅小廳清潔工時":"cleanDemonSmall","F1大廳清潔工時":"cleanF1Big","F1小廳清潔工時":"cleanF1Small",
-  "每人變動成本":"varCostPerHead"
-}
-const matrixHalls=['鬼滅大廳','鬼滅小廳','F1大廳','F1小廳']
-const matrixRows=['片長(h)','上座率','清潔/場','座位數','票價(全票)','平均票價(估)']
 
 function importExcel(){ el('excelFile').click() }
 function handleExcelFile(e){
@@ -217,6 +250,9 @@ function parseSheetToConfig(sheet){
   setIf('priceF1',       read('票價(全票)','F1大廳')   ?? read('票價(全票)','F1小廳'))
   setIf('avgPriceDemon', read('平均票價(估)','鬼滅大廳') ?? read('平均票價(估)','鬼滅小廳'))
   setIf('avgPriceF1',    read('平均票價(估)','F1大廳')   ?? read('平均票價(估)','F1小廳'))
+  // 可從鍵值表讀入每片是否已含長片加價與長片加價金額
+  setIf('longFeeDemon', read('長片加價','鬼滅大廳') ?? null)
+  setIf('longFeeF1',    read('長片加價','F1大廳')   ?? null)
   return cfg
 }
 function pullGlobalParamsFromWorkbook(wb){
@@ -226,7 +262,12 @@ function pullGlobalParamsFromWorkbook(wb){
     const rows = XLSX.utils.sheet_to_json(sheet, {defval:"", raw:true})
     if(rows.length){
       const r0 = rows[0]
-      for(const k of Object.keys(r0)){ const std=flatKeyMap[k]||k; if(keys.includes(std) && r0[k] !== ""){ const dom=el(std); if(dom) dom.value = r0[k] } }
+      for(const k of Object.keys(r0)){ const std=flatKeyMap[k]||k; if(keys.includes(std) && r0[k] !== ""){
+        const dom=el(std); if(dom){
+          if(typeof dom.type === 'string' && dom.type === 'checkbox'){ dom.checked = !!r0[k] }
+          else { dom.value = r0[k] }
+        }
+      } }
     }
     const range = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null
     if(range){
@@ -234,13 +275,18 @@ function pullGlobalParamsFromWorkbook(wb){
         const label = (sheet[XLSX.utils.encode_cell({r, c: range.s.c})]?.v ?? '').toString().trim()
         const value = sheet[XLSX.utils.encode_cell({r, c: range.s.c+1})]?.v
         const std = flatKeyMap[label] || label
-        if(keys.includes(std) && value !== undefined && value!==""){ const dom = el(std); if(dom) dom.value = value }
+        if(keys.includes(std) && value !== undefined && value!==""){
+          const dom = el(std); if(dom){
+            if(typeof dom.type === 'string' && dom.type === 'checkbox'){ dom.checked = !!value }
+            else { dom.value = value }
+          }
+        }
       }
     }
   }
 }
 
-// Export Best
+// ---------- Export Best Solution ----------
 function exportBestCSV(){
   const st = window.__lastBest || {}; const best=st.best
   if(!best){ alert('請先求解'); return }
@@ -283,32 +329,36 @@ function exportBestXLSX(){
   saveAs(blob, 'best_solution.xlsx')
 }
 
+// ---------- UX ----------
 function loadBase(){
   el('limitTime').value = 98; el('limitClean').value = 60
   el('limitBigShows').value = 30; el('limitSmallShows').value = 50; el('minPerTitle').value = 2
-  el('avgIncludesLongFee').checked = false
   el('capBig').value = 400; el('capSmall').value = 200
   el('occDemonBig').value = 85; el('occDemonSmall').value = 90
   el('occF1Big').value = 90; el('occF1Small').value = 95
   el('demandDemon').value = 7000; el('demandF1').value = 6000
   el('priceDemon').value = 450; el('timeDemon').value = 2.6; el('longFeeDemon').value = 30; el('avgPriceDemon').value = 300
-  el('priceF1').value = 420; el('timeF1').value = 2.1; el('avgPriceF1').value = 260
+  el('priceF1').value = 420; el('timeF1').value = 2.1; el('longFeeF1').value = 0; el('avgPriceF1').value = 260
   el('cleanDemonBig').value = 3; el('cleanDemonSmall').value = 1.5; el('cleanF1Big').value = 2; el('cleanF1Small').value = 1
   el('varCostPerHead').value = 30
+  el('avgIncludesLongFeeDemon').checked = false
+  el('avgIncludesLongFeeF1').checked = false
 }
-
 function bind(){
   document.querySelectorAll('input').forEach(i=>{
-    i.addEventListener('input', ()=>{ clearTimeout(window.__t); window.__t=setTimeout(solve,150) })
+    i.addEventListener('input', ()=>{ clearTimeout(window.__t); window.__t=setTimeout(solve,120) })
     i.addEventListener('change', ()=>{ solve() })
   })
   el('btnSolve').addEventListener('click', solve)
   el('btnBase').addEventListener('click', ()=>{ loadBase(); solve() })
+
   el('btnExportCfg').addEventListener('click', exportCfg)
-  el('btnImportCfg').addEventListener('click', importCfg)
+  el('btnImportCfg').addEventListener('click', ()=> el('importCfgFile').click())
   el('importCfgFile').addEventListener('change', handleCfgFile)
-  el('btnExcel').addEventListener('click', importExcel)
+
+  el('btnExcel').addEventListener('click', ()=> el('excelFile').click())
   el('excelFile').addEventListener('change', handleExcelFile)
+
   el('btnExportCSV').addEventListener('click', exportBestCSV)
   el('btnExportXLSX').addEventListener('click', exportBestXLSX)
 }

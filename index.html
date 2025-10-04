@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>影城排片 DASHBOARD v3.2（含檢查＋匯入/情境/匯出）</title>
+  <title>影城排片 DASHBOARD v3.3（含檢查＋匯入/情境/匯出）</title>
   <link rel="stylesheet" href="style.css" />
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -13,7 +13,7 @@
 <body>
 <header class="app-header">
   <h1>影城排片 DASHBOARD</h1>
-  <div class="sub">v3.2：檢查（單位/約束/需求/長片加價）＋ Excel/JSON 匯入、情境按鈕、最佳解匯出</div>
+  <div class="sub">v3.3：檢查＋Excel/JSON 匯入＋情境＋匯出；新增上座率夾限、NaN 防護、單位提示、每片長片加價</div>
 </header>
 
 <main class="container">
@@ -27,17 +27,16 @@
         <div class="row"><label>大廳場次上限</label><input id="limitBigShows" type="number" value="30"></div>
         <div class="row"><label>小廳場次上限</label><input id="limitSmallShows" type="number" value="50"></div>
         <div class="row"><label>每片最少場次</label><input id="minPerTitle" type="number" value="2"></div>
-        <div class="row"><label>平均票價已含長片加價</label><input id="avgIncludesLongFee" type="checkbox"></div>
       </div>
 
       <div>
         <h3>座位/上座率（％）/需求</h3>
         <div class="row"><label>大廳座位</label><input id="capBig" type="number" value="400"></div>
         <div class="row"><label>小廳座位</label><input id="capSmall" type="number" value="200"></div>
-        <div class="row"><label>鬼滅(大)上座率</label><input id="occDemonBig" type="number" value="85"></div>
-        <div class="row"><label>鬼滅(小)上座率</label><input id="occDemonSmall" type="number" value="90"></div>
-        <div class="row"><label>F1(大)上座率</label><input id="occF1Big" type="number" value="90"></div>
-        <div class="row"><label>F1(小)上座率</label><input id="occF1Small" type="number" value="95"></div>
+        <div class="row with-unit"><label>鬼滅(大)上座率</label><input id="occDemonBig" type="number" value="85"><span class="unit">%</span></div>
+        <div class="row with-unit"><label>鬼滅(小)上座率</label><input id="occDemonSmall" type="number" value="90"><span class="unit">%</span></div>
+        <div class="row with-unit"><label>F1(大)上座率</label><input id="occF1Big" type="number" value="90"><span class="unit">%</span></div>
+        <div class="row with-unit"><label>F1(小)上座率</label><input id="occF1Small" type="number" value="95"><span class="unit">%</span></div>
         <div class="row"><label>鬼滅人次上限</label><input id="demandDemon" type="number" value="7000"></div>
         <div class="row"><label>F1 人次上限</label><input id="demandF1" type="number" value="6000"></div>
       </div>
@@ -48,9 +47,13 @@
         <div class="row"><label>鬼滅片長(hr)</label><input id="timeDemon" type="number" value="2.6" step="0.1"></div>
         <div class="row"><label>鬼滅長片加價</label><input id="longFeeDemon" type="number" value="30"></div>
         <div class="row"><label>鬼滅平均票價</label><input id="avgPriceDemon" type="number" value="300"></div>
+        <div class="row"><label>平均票價已含長片加價（鬼滅）</label><input id="avgIncludesLongFeeDemon" type="checkbox"></div>
+
         <div class="row"><label>F1 全票</label><input id="priceF1" type="number" value="420"></div>
         <div class="row"><label>F1 片長(hr)</label><input id="timeF1" type="number" value="2.1" step="0.1"></div>
+        <div class="row"><label>F1 長片加價</label><input id="longFeeF1" type="number" value="0"></div>
         <div class="row"><label>F1 平均票價</label><input id="avgPriceF1" type="number" value="260"></div>
+        <div class="row"><label>平均票價已含長片加價（F1）</label><input id="avgIncludesLongFeeF1" type="checkbox"></div>
       </div>
 
       <div>
